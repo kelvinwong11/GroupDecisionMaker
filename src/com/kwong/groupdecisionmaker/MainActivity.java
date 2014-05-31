@@ -59,10 +59,16 @@ public class MainActivity extends Activity {
 				locationManager.removeUpdates(locationListener);
 			}
 		};
-		locationManager.requestLocationUpdates(
-				LocationManager.NETWORK_PROVIDER, 1000, 0, locationListener);
-		locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
-				1000, 0, locationListener);
+		String gpsProvider = LocationManager.GPS_PROVIDER;
+		if (locationManager.isProviderEnabled(gpsProvider)) {
+			locationManager.requestLocationUpdates(gpsProvider, 1000, 0,
+					locationListener);
+		}
+		String networkProvider = LocationManager.NETWORK_PROVIDER;
+		if (locationManager.isProviderEnabled(networkProvider)) {
+			locationManager.requestLocationUpdates(networkProvider, 1000, 0,
+					locationListener);
+		}
 	}
 
 	@Override
