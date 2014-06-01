@@ -16,6 +16,10 @@ import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesClient;
+import com.google.android.gms.location.LocationClient;
+
 import android.app.Activity;
 import android.app.Fragment;
 import android.content.Context;
@@ -37,14 +41,15 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class MainActivity extends Activity{
+public class MainActivity extends Activity implements
+		GooglePlayServicesClient.ConnectionCallbacks,
+		GooglePlayServicesClient.OnConnectionFailedListener {
 	private final String CLIENT_ID = "0EE5VMUHE5EBBUVJAE5HZSZIBJUNELZV0CV34PXMIGQOFGIP";
 	private final String CLIENT_SECRET = "DDOV4QH3AWHGKUUZJYC4FN5KEP1MMSOHOGYDY2CETOU2B2QM";
 	private final String URL_BASE = "https://api.foursquare.com/v2";
 
-	LocationManager locationManager;
-	LocationListener locationListener;
 	Location userLocation;
+	LocationClient locationClient;
 
 	ListView sectionsListView;
 	TextView locationTextView;
@@ -54,6 +59,9 @@ public class MainActivity extends Activity{
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+
+		locationClient = new LocationClient(this, this, this);
+		locationClient.connect();
 
 		sectionNames.add("food");
 		sectionNames.add("drinks");
@@ -95,45 +103,12 @@ public class MainActivity extends Activity{
 	@Override
 	protected void onResume() {
 		super.onResume();
+	}
 
-		locationManager = (LocationManager) this
-				.getSystemService(Context.LOCATION_SERVICE);
-		locationListener = new LocationListener() {
-			@Override
-			public void onStatusChanged(String provider, int status,
-					Bundle extras) {
-
-			}
-
-			@Override
-			public void onProviderEnabled(String provider) {
-
-			}
-
-			@Override
-			public void onProviderDisabled(String provider) {
-
-			}
-
-			@Override
-			public void onLocationChanged(Location location) {
-				locationManager.removeUpdates(locationListener);
-				userLocation = location;
-				locationTextView.setText("Location found: "
-						+ location.getLatitude() + " "
-						+ location.getLongitude());
-			}
-		};
-		String gpsProvider = LocationManager.GPS_PROVIDER;
-		if (locationManager.isProviderEnabled(gpsProvider)) {
-			locationManager.requestLocationUpdates(gpsProvider, 1000, 0,
-					locationListener);
-		}
-		String networkProvider = LocationManager.NETWORK_PROVIDER;
-		if (locationManager.isProviderEnabled(networkProvider)) {
-			locationManager.requestLocationUpdates(networkProvider, 1000, 0,
-					locationListener);
-		}
+	@Override
+	protected void onStop() {
+		locationClient.disconnect();
+		super.onStop();
 	}
 
 	@Override
@@ -178,7 +153,7 @@ public class MainActivity extends Activity{
 			List<NameValuePair> qparams = new ArrayList<NameValuePair>();
 			qparams.add(new BasicNameValuePair("ll", params[0] + ","
 					+ params[1]));
-			qparams.add(new BasicNameValuePair("section", params[3]));
+			qparams.add(new BasicNameValuePair("section", params[2]));
 			qparams.add(new BasicNameValuePair("limit", "1"));
 			qparams.add(new BasicNameValuePair("client_id", CLIENT_ID));
 			qparams.add(new BasicNameValuePair("client_secret", CLIENT_SECRET));
@@ -210,5 +185,23 @@ public class MainActivity extends Activity{
 		private String getCurrentTime() {
 			return new SimpleDateFormat("yyyyMMdd").format(new Date());
 		}
+	}
+
+	@Override
+	public void onConnectionFailed(ConnectionResult arg0) {
+	}
+
+	@Override
+	public void onConnected(Bundle arg0) {
+		locationTextView.setText("Connected");
+		
+		userLocation = locationClient.getLastLocation();
+		locationTextView.setText("Location found: "
+				+ userLocation.getLatitude() + " "
+				+ userLocation.getLongitude());
+	}
+
+	@Override
+	public void onDisconnected() {
 	}
 }
