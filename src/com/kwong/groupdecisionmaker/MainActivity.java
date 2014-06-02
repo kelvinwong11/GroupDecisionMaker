@@ -16,16 +16,9 @@ import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GooglePlayServicesClient;
-import com.google.android.gms.location.LocationClient;
-
 import android.app.Activity;
 import android.app.Fragment;
-import android.content.Context;
 import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
@@ -41,15 +34,22 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesClient;
+import com.google.android.gms.location.LocationClient;
+import com.google.android.gms.location.LocationRequest;
+
 public class MainActivity extends Activity implements
 		GooglePlayServicesClient.ConnectionCallbacks,
-		GooglePlayServicesClient.OnConnectionFailedListener {
+		GooglePlayServicesClient.OnConnectionFailedListener,
+		com.google.android.gms.location.LocationListener {
 	private final String CLIENT_ID = "0EE5VMUHE5EBBUVJAE5HZSZIBJUNELZV0CV34PXMIGQOFGIP";
 	private final String CLIENT_SECRET = "DDOV4QH3AWHGKUUZJYC4FN5KEP1MMSOHOGYDY2CETOU2B2QM";
 	private final String URL_BASE = "https://api.foursquare.com/v2";
 
 	Location userLocation;
 	LocationClient locationClient;
+	LocationRequest locationRequest;
 
 	ListView sectionsListView;
 	TextView locationTextView;
@@ -62,6 +62,10 @@ public class MainActivity extends Activity implements
 
 		locationClient = new LocationClient(this, this, this);
 		locationClient.connect();
+		locationRequest = LocationRequest.create();
+		locationRequest.setPriority(LocationRequest.PRIORITY_LOW_POWER);
+		locationRequest.setNumUpdates(1);
+		locationRequest.setInterval(5000);
 
 		sectionNames.add("food");
 		sectionNames.add("drinks");
@@ -189,19 +193,26 @@ public class MainActivity extends Activity implements
 
 	@Override
 	public void onConnectionFailed(ConnectionResult arg0) {
+		locationTextView.setText("Connection failed");
 	}
 
 	@Override
 	public void onConnected(Bundle arg0) {
-		locationTextView.setText("Connected");
-		
-		userLocation = locationClient.getLastLocation();
-		locationTextView.setText("Location found: "
-				+ userLocation.getLatitude() + " "
-				+ userLocation.getLongitude());
+		locationTextView.setText("Connected, waiting for location");
+		locationClient.requestLocationUpdates(locationRequest, this);
 	}
 
 	@Override
 	public void onDisconnected() {
+		locationTextView.setText("Disconnected");
+	}
+
+	@Override
+	public void onLocationChanged(Location location) {
+		userLocation = location;
+		locationClient.disconnect();
+		locationTextView.setText("Location found: "
+				+ userLocation.getLatitude() + " "
+				+ userLocation.getLongitude());
 	}
 }
