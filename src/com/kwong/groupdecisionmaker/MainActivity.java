@@ -1,6 +1,6 @@
 package com.kwong.groupdecisionmaker;
 
-import java.io.InputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
@@ -8,20 +8,27 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.utils.URIUtils;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.util.EntityUtils;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 import android.app.Activity;
 import android.app.Fragment;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -45,7 +52,6 @@ public class MainActivity extends Activity implements
 		com.google.android.gms.location.LocationListener {
 	private final String CLIENT_ID = "0EE5VMUHE5EBBUVJAE5HZSZIBJUNELZV0CV34PXMIGQOFGIP";
 	private final String CLIENT_SECRET = "DDOV4QH3AWHGKUUZJYC4FN5KEP1MMSOHOGYDY2CETOU2B2QM";
-	private final String URL_BASE = "https://api.foursquare.com/v2";
 
 	Location userLocation;
 	LocationClient locationClient;
@@ -90,6 +96,7 @@ public class MainActivity extends Activity implements
 					Toast.makeText(getBaseContext(), "Waiting for location..",
 							Toast.LENGTH_SHORT).show();
 				} else {
+					sectionsListView.setVisibility(View.GONE);
 					new getJSONData().execute(
 							String.valueOf(userLocation.getLatitude()),
 							String.valueOf(userLocation.getLongitude()),
@@ -151,9 +158,10 @@ public class MainActivity extends Activity implements
 		}
 	}
 
-	public class getJSONData extends AsyncTask<String, Void, Void> {
-		@Override
-		protected Void doInBackground(String... params) {
+	public class getJSONData extends AsyncTask<String, Void, String> {
+		protected String doInBackground(String... params) {
+			String JSONBody = null;
+
 			List<NameValuePair> qparams = new ArrayList<NameValuePair>();
 			qparams.add(new BasicNameValuePair("ll", params[0] + ","
 					+ params[1]));
@@ -162,28 +170,46 @@ public class MainActivity extends Activity implements
 			qparams.add(new BasicNameValuePair("client_id", CLIENT_ID));
 			qparams.add(new BasicNameValuePair("client_secret", CLIENT_SECRET));
 			qparams.add(new BasicNameValuePair("v", getCurrentTime()));
+
 			try {
-				InputStream in = null;
 				URI uri = URIUtils.createURI("https", "api.foursquare.com/v2",
 						-1, "/venues/explore",
 						URLEncodedUtils.format(qparams, "UTF-8"), null);
 				String commaFixedString = uri.toString().replaceAll("%2C", ",");
 				HttpClient httpClient = new DefaultHttpClient();
 				HttpGet httpGet = new HttpGet(commaFixedString);
-				Log.d("a", commaFixedString);
-				// HttpResponse httpResponse = httpClient.execute(httpGet);
-				// HttpEntity httpEntity = httpResponse.getEntity();
-				// String body = EntityUtils.toString(httpEntity, "UTF-8");
-				// Log.d("asdf", body);
+				HttpResponse httpResponse = httpClient.execute(httpGet);
+				HttpEntity httpEntity = httpResponse.getEntity();
+				JSONBody = EntityUtils.toString(httpEntity, "UTF-8");
+
 			} catch (URISyntaxException e) {
 				e.printStackTrace();
-				// } catch (ClientProtocolException e) {
-				// e.printStackTrace();
-				// } catch (IOException e) {
-				// e.printStackTrace();
+			} catch (ClientProtocolException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
 
-			return null;
+			return JSONBody;
+		}
+
+		protected void onPostExecute(String jsonBody) {
+			JSONObject fullObject = null;
+			JSONParser parser = new JSONParser();
+			Object obj;
+
+			try {
+				obj = parser.parse(jsonBody);
+				fullObject = (JSONObject) obj;
+				JSONObject response = (JSONObject) fullObject.get("response");
+
+				JSONArray groups = (JSONArray) response.get("groups");
+				JSONObject recommendedPlaces = (JSONObject) groups.get(0);
+				JSONArray items = (JSONArray) recommendedPlaces.get("items");
+				JSONObject venue = (JSONObject) items.get(0);
+			} catch (ParseException e) {
+				e.printStackTrace();
+			}
 		}
 
 		private String getCurrentTime() {
