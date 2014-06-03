@@ -206,7 +206,11 @@ public class MainActivity extends Activity implements
 				JSONArray groups = (JSONArray) response.get("groups");
 				JSONObject recommendedPlaces = (JSONObject) groups.get(0);
 				JSONArray items = (JSONArray) recommendedPlaces.get("items");
-				JSONObject venue = (JSONObject) items.get(0);
+				if (items.size() > 0) {
+					JSONObject venue = (JSONObject) items.get(0);
+				} else {
+					locationTextView.setText("RIP, there's nothing here.  Now we starve");
+				}
 			} catch (ParseException e) {
 				e.printStackTrace();
 			}
