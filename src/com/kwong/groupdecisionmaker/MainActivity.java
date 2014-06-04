@@ -7,6 +7,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -26,13 +27,17 @@ import org.json.simple.parser.ParseException;
 
 import android.app.Activity;
 import android.app.Fragment;
+import android.content.Intent;
 import android.location.Location;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
@@ -58,7 +63,7 @@ public class MainActivity extends Activity implements
 	LocationRequest locationRequest;
 
 	ListView sectionsListView;
-	TextView locationTextView;
+	TextView gpsTextView;
 	List<String> sectionNames = new ArrayList<String>();
 
 	@Override
@@ -83,7 +88,7 @@ public class MainActivity extends Activity implements
 		sectionNames.add("trending");
 
 		sectionsListView = (ListView) findViewById(R.id.sections_list_view);
-		locationTextView = (TextView) findViewById(R.id.location_text_view);
+		gpsTextView = (TextView) findViewById(R.id.location_text_view);
 		ArrayAdapter<String> arrayAdapter = new ArrayAdapter<String>(this,
 				android.R.layout.simple_list_item_1, sectionNames);
 
@@ -96,6 +101,7 @@ public class MainActivity extends Activity implements
 					Toast.makeText(getBaseContext(), "Waiting for location..",
 							Toast.LENGTH_SHORT).show();
 				} else {
+					gpsTextView.setText("Loading venue now");
 					sectionsListView.setVisibility(View.GONE);
 					new getJSONData().execute(
 							String.valueOf(userLocation.getLatitude()),
@@ -207,9 +213,32 @@ public class MainActivity extends Activity implements
 				JSONObject recommendedPlaces = (JSONObject) groups.get(0);
 				JSONArray items = (JSONArray) recommendedPlaces.get("items");
 				if (items.size() > 0) {
-					JSONObject venue = (JSONObject) items.get(0);
+					JSONObject firstItem = (JSONObject) items.get(0);
+					final JSONObject venue = (JSONObject) firstItem
+							.get("venue");
+					final JSONObject location = (JSONObject) venue
+							.get("location");
+					gpsTextView.setText("Congrats, you're going to "
+							+ venue.get("name") + " at "
+							+ location.get("address"));
+
+					gpsTextView.setOnClickListener(new OnClickListener() {
+						@Override
+						public void onClick(View v) {
+							String uri;
+							uri = String.format(Locale.ENGLISH,
+									"geo:%f,%f?q=%s", location.get("lat"),
+									location.get("lng"), venue.get("name"));
+							Log.d("a", uri);
+							Intent intent = new Intent(Intent.ACTION_VIEW, Uri
+									.parse(uri));
+							intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+							getBaseContext().startActivity(intent);
+						}
+					});
 				} else {
-					locationTextView.setText("RIP, there's nothing here.  Now we starve");
+					gpsTextView
+							.setText("There's nothing here.  Are you using this app in Waterloo?");
 				}
 			} catch (ParseException e) {
 				e.printStackTrace();
@@ -223,26 +252,25 @@ public class MainActivity extends Activity implements
 
 	@Override
 	public void onConnectionFailed(ConnectionResult arg0) {
-		locationTextView.setText("Connection failed");
+		gpsTextView.setText("Connection failed");
 	}
 
 	@Override
 	public void onConnected(Bundle arg0) {
-		locationTextView.setText("Connected, waiting for location");
+		gpsTextView.setText("Connected, waiting for location");
 		locationClient.requestLocationUpdates(locationRequest, this);
 	}
 
 	@Override
 	public void onDisconnected() {
-		locationTextView.setText("Disconnected");
+		gpsTextView.setText("Disconnected");
 	}
 
 	@Override
 	public void onLocationChanged(Location location) {
 		userLocation = location;
 		locationClient.disconnect();
-		locationTextView.setText("Location found: "
-				+ userLocation.getLatitude() + " "
-				+ userLocation.getLongitude());
+		gpsTextView.setText("Location found: " + userLocation.getLatitude()
+				+ " " + userLocation.getLongitude());
 	}
 }
